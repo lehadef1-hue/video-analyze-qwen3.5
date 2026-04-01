@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Video Analysis Results</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #0e0e0e;
+      color: #e0e0e0;
+      line-height: 1.55;
+    }
+    h1 {
+      text-align: center;
+      color: #fff;
+      font-size: 1.6rem;
+      margin: 0 0 24px;
+    }
+
+    /* ── Страница (запуск) ──────────────────────────────── */
+    .run {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      background: #181818;
+      border-radius: 12px;
+      border: 1px solid #2a2a2a;
+    }
+    .run-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #333;
+      margin-bottom: 20px;
+    }
+    .run-header h2 { margin: 0; font-size: 1.15rem; color: #bbb; }
+    .run-header span { color: #666; font-size: 0.9rem; }
+
+    /* ── Карточка видео ─────────────────────────────────── */
+    .video {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 18px;
+      padding: 16px;
+      background: #1f1f1f;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      border: 1px solid #2a2a2a;
+    }
+    .video-thumb img {
+      width: 100%;
+      border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.8);
+      display: block;
+    }
+    .video-thumb .no-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #2a2a2a;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-size: 0.85rem;
+    }
+
+    /* ── Правая колонка ─────────────────────────────────── */
+    .video-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+    .video-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ddd;
+      margin: 0;
+      word-break: break-all;
+    }
+
+    /* ── Ориентация + категории ─────────────────────────── */
+    .video-meta-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .badge-straight { background: #1a3a5c; color: #7ec8ff; }
+    .badge-gay      { background: #3a1a5c; color: #d78cff; }
+    .badge-shemale  { background: #5c1a2e; color: #ff8cae; }
+    .badge-unknown  { background: #333;    color: #888;    }
+    .badge-studio   { background: #1e3a1e; color: #7ecf7e; font-weight: 600; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      background: #2a2a2a;
+      color: #e87070;
+      border: 1px solid #3a2020;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.78rem;
+    }
+
+    /* ── Исполнители ────────────────────────────────────── */
+    .performers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .performers-label {
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-right: 2px;
+    }
+    .performer-tag {
+      background: #1c2a3a;
+      color: #8ec8ff;
+      border: 1px solid #1e3a5c;
+      border-radius: 4px;
+      padding: 2px 9px;
+      font-size: 0.8rem;
+    }
+
+    /* ── Описание ───────────────────────────────────────── */
+    .description {
+      color: #aaa;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      border-left: 3px solid #333;
+      padding-left: 10px;
+    }
+
+    /* ── Кадры ──────────────────────────────────────────── */
+    .frames-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .frames-grid img {
+      height: 110px;
+      width: auto;
+      border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+      transition: transform .15s, box-shadow .15s;
+      cursor: zoom-in;
+    }
+    .frames-grid img:hover {
+      transform: scale(1.06);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.9);
+    }
+
+    /* ── Пагинация ──────────────────────────────────────── */
+    .pagination {
+      text-align: center;
+      margin: 32px 0 16px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pagination button {
+      padding: 8px 16px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #222;
+      color: #ccc;
+      transition: .15s;
+    }
+    .pagination button:hover:not(:disabled) { background: #333; border-color: #666; }
+    .pagination button.active { background: #c62828; border-color: #c62828; color: #fff; }
+    .pagination button:disabled { opacity: 0.35; cursor: default; }
+    .page-info { text-align: center; color: #555; margin-bottom: 40px; font-size: 0.9rem; }
+
+    .hide { display: none !important; }
+    .empty-state { text-align: center; color: #444; font-size: 1.4rem; margin: 120px 0; }
+
+    /* ── Панель управления ──────────────────────────────── */
+    .control-panel {
+      max-width: 1500px;
+      margin: 0 auto 28px;
+      padding: 18px 24px;
+      background: #181818;
+      border-radius: 12px;
+      border: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .control-panel label { color: #888; font-size: 0.88rem; white-space: nowrap; }
+    .control-panel input[type=text] {
+      flex: 1;
+      min-width: 260px;
+      padding: 8px 12px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #ddd;
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+    .control-panel input[type=text]:focus { outline: none; border-color: #555; }
+    .btn-run {
+      padding: 9px 22px;
+      background: #c62828;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+    .btn-run:hover:not(:disabled) { background: #e53935; }
+    .btn-run:disabled { background: #555; cursor: default; }
+    .run-status {
+      font-size: 0.88rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: none;
+    }
+    .run-status.processing { display: block; background: #1a2a3a; color: #7ec8ff; }
+    .run-status.done       { display: block; background: #1a3a1a; color: #7ecf7e; }
+    .run-status.error      { display: block; background: #3a1a1a; color: #ff8888; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid #7ec8ff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* ── Лайтбокс ───────────────────────────────────────── */
+    #lightbox {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 95vw; max-height: 92vh; border-radius: 6px; box-shadow: 0 0 60px rgba(0,0,0,1); }
+    #lightbox-close {
+      position: fixed; top: 18px; right: 24px;
+      font-size: 2rem; color: #aaa; cursor: pointer; user-select: none;
+    }
+    #lightbox-close:hover { color: #fff; }
+  </style>
+</head>
+<body>
+
+<h1>Результаты анализа видео</h1>
+
+<!-- ── Панель запуска ──────────────────────────────────── -->
+<div class="control-panel">
+  <label for="input-dir">Папка с видео:</label>
+  <input type="text" id="input-dir" value="/workspace/video/videos" spellcheck="false">
+  <button class="btn-run" id="btn-run" onclick="startProcessing()">▶ Запустить обработку</button>
+  <div class="run-status" id="run-status"></div>
+</div>
+
+{% for run in runs %}
+<div class="run hide" id="run-{{ loop.index }}" data-page="{{ loop.index }}">
+  <div class="run-header">
+    <h2>{{ run.name }}</h2>
+    <span>{{ run.videos|length }} видео</span>
+  </div>
+
+  {% for video in run.videos %}
+  <div class="video">
+
+    <!-- Thumbnail -->
+    <div class="video-thumb">
+      {% if video.thumbnail %}
+      <img src="{{ video.thumbnail }}" alt="thumb" onclick="openLightbox(this.src)">
+      {% else %}
+      <div class="no-thumb">нет thumbnail</div>
+      {% endif %}
+    </div>
+
+    <!-- Правая колонка -->
+    <div class="video-right">
+      <h3 class="video-title">{{ video.name }}</h3>
+
+      <!-- Ориентация + теги -->
+      <div class="video-meta-top">
+        {% set ori = video.orientation | lower %}
+        {% if ori == "straight" %}
+          <span class="badge badge-straight">straight</span>
+        {% elif ori == "gay" %}
+          <span class="badge badge-gay">gay</span>
+        {% elif ori == "shemale" %}
+          <span class="badge badge-shemale">shemale</span>
+        {% elif ori %}
+          <span class="badge badge-unknown">{{ video.orientation }}</span>
+        {% endif %}
+
+        {% if video.studio %}
+        <span class="badge badge-studio">{{ video.studio }}</span>
+        {% endif %}
+
+        <div class="tags">
+          {% for cat in video.categories %}
+          <span class="tag">{{ cat }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Исполнители -->
+      {% if video.performers %}
+      <div class="performers">
+        <span class="performers-label">Cast:</span>
+        {% for p in video.performers %}
+        <span class="performer-tag">{{ p }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Описание -->
+      {% if video.description and video.description != "—" %}
+      <div class="description">{{ video.description }}</div>
+      {% endif %}
+
+      <!-- Кадры -->
+      {% if video.frames %}
+      <div class="frames-grid">
+        {% for frame in video.frames %}
+        <img src="{{ frame }}" alt="frame {{ loop.index }}" onclick="openLightbox(this.src)">
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<div class="pagination" id="main-pagination"></div>
+<div class="page-info" id="page-info"></div>
+
+<!-- Лайтбокс -->
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightbox-close" onclick="closeLightbox()">✕</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+  // ── Пагинация ──────────────────────────────────────────
+  const runs = document.querySelectorAll('.run');
+  const totalPages = runs.length;
+  const pagination = document.getElementById('main-pagination');
+  const info = document.getElementById('page-info');
+  let currentPage = 1;
+
+  function showPage(page) {
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    runs.forEach((r, i) => r.classList.toggle('hide', i + 1 !== page));
+    renderPagination();
+    info.textContent = `Страница ${page} / ${totalPages}`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderPagination() {
+    pagination.innerHTML = '';
+
+    const prev = btn('← Пред.', () => showPage(currentPage - 1), currentPage === 1);
+    pagination.appendChild(prev);
+
+    // Номера страниц
+    for (let i = 1; i <= totalPages; i++) {
+      const b = btn(String(i), () => showPage(i), false);
+      if (i === currentPage) b.classList.add('active');
+      pagination.appendChild(b);
+    }
+
+    const next = btn('След. →', () => showPage(currentPage + 1), currentPage === totalPages);
+    pagination.appendChild(next);
+  }
+
+  function btn(label, onclick, disabled) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = onclick;
+    return b;
+  }
+
+  if (totalPages > 0) {
+    showPage(1);
+  } else {
+    document.body.innerHTML += '<div class="empty-state">Нет обработанных запусков</div>';
+  }
+
+  // ── Лайтбокс ──────────────────────────────────────────
+  function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.getElementById('lightbox-img').src = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+  // ── Запуск обработки ───────────────────────────────────
+  async function startProcessing() {
+    const btn = document.getElementById('btn-run');
+    const status = document.getElementById('run-status');
+    const inputDir = document.getElementById('input-dir').value.trim();
+
+    btn.disabled = true;
+    status.className = 'run-status processing';
+    status.innerHTML = '<span class="spinner"></span>Обрабатываю видео…';
+
+    try {
+      const resp = await fetch('/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input_dir: inputDir })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        throw new Error(data.detail || `HTTP ${resp.status}`);
+      }
+      if (data.status === 'nothing_to_process') {
+        status.className = 'run-status error';
+        status.textContent = 'Видео не найдено в указанной папке';
+      } else {
+        const n = data.results ? data.results.length : '?';
+        status.className = 'run-status done';
+        status.innerHTML = `✓ Готово: ${n} видео. <a href="/browse" style="color:#7ecf7e">Обновить страницу →</a>`;
+      }
+    } catch (e) {
+      status.className = 'run-status error';
+      status.textContent = 'Ошибка: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
