@@ -134,8 +134,14 @@ def build_analysis_prompt(frame_count: int, ts_map: str, desc_style: str, langua
 FRAME TIMESTAMPS (seconds from video start):
 {ts_map}
 
+STRICT RULE — applies to ALL sections below:
+Describe ONLY what is CLEARLY and UNAMBIGUOUSLY VISIBLE in the frames.
+WHEN IN DOUBT → OMIT. Do NOT infer, assume, or invent details not directly visible.
+If something is partially visible or unclear — do not mention it.
+
 --- ORIENTATION ---
 Choose EXACTLY ONE value: straight | gay | shemale
+Base your choice ONLY on performers clearly visible in the frames.
 - straight  = male+female sex, OR all-female (lesbian = category tag, NOT an orientation)
 - gay       = ONLY male performers having sex with each other — no women present at all
 - shemale   = trans woman (MTF): visibly feminine body (breasts) WITH a penis visible
@@ -147,13 +153,15 @@ CRITICAL: feminine body + visible penis → "shemale", not "straight".
 Before writing the description, identify what type of content this is:
 • Real human performers only → describe normally
 • Animated/CGI content (anime, 3D, cartoon, hentai) → say so explicitly in description
-• MIXED: real human performer + animated/CGI elements (tentacles, monster, creature, animated penis/appendages) → CRITICAL: describe the non-human elements accurately. If penetration is by a tentacle, animated appendage, or CGI creature — call it "tentacle", "creature appendage", or "animated monster", NOT "penis" or "cock". Do NOT misidentify non-human objects as human anatomy.
+• MIXED: real human performer + animated/CGI elements (tentacles, monster, creature, animated appendages) → describe non-human elements accurately. If penetration is by a tentacle or CGI creature — call it exactly that, NOT "penis" or "cock". Do NOT misidentify non-human objects as human anatomy.
 
 --- DESCRIPTION ---
 {desc_style}
+IMPORTANT: describe only what is directly visible in the frames. Do not add acts, body details, or setting elements that are not clearly shown. If a detail is not visible — do not include it.
 
 --- WATERMARKS / ON-SCREEN TEXT ---
-List ALL visible static text overlays, watermarks, logos across ALL frames.
+List ONLY text overlays or logos that are clearly readable across the frames.
+Do NOT guess or reconstruct partially visible text.
 Return exact text as array (e.g. ["brazzers.com", "pornhub.com"]). Return [] if none.
 
 --- OUTPUT ---
@@ -959,4 +967,4 @@ async def api_task_status(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("video_processor_v4:app", host="0.0.0.0", port=8000, log_level="info", workers=1)
+    uvicorn.run("video_processor:app", host="0.0.0.0", port=8000, log_level="info", workers=1)
