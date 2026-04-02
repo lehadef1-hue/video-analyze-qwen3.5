@@ -17,15 +17,18 @@ def load_categories(path: str | Path = CATEGORIES_PATH) -> dict:
 
 def build_category_prompt(categories: dict) -> str:
     """
-    Names-only category listing grouped by section.
-    Compact format keeps prompt short so the model has room to reason about images.
+    Category listing grouped by section with full descriptions.
     """
     lines = []
     for section in categories.values():
         title = section["title"]
-        names = [f'"{cat["name"]}"' for cat in section["categories"]]
         lines.append(f"\n## {title}")
-        lines.append("  " + ", ".join(names))
+        for cat in section["categories"]:
+            name = cat["name"]
+            desc = cat.get("description", "")
+            if len(desc) > 300:
+                desc = desc[:297] + "..."
+            lines.append(f'  - "{name}": {desc}')
     return "\n".join(lines)
 
 
