@@ -126,6 +126,8 @@ class GenerateRequest(BaseModel):
 @app.post("/generate")
 async def generate(request: GenerateRequest):
     try:
+        n_imgs = len(request.base64_images)
+        logger.info(f"Request: images={n_imgs} prompt_len={len(request.prompt)} thinking={request.enable_thinking} has_vision_handler={chat_handler is not None}")
         params = request.sampling_params or {
             "temperature": 0.7,
             "top_p":       0.95,
@@ -187,6 +189,7 @@ async def generate(request: GenerateRequest):
         if finish_reason == "length":
             logger.warning(f"finish_reason=length — max_tokens hit, ответ обрезан ({len(text)} chars)")
 
+        logger.info(f"Response: finish={finish_reason} len={len(text)} | {text[:200]}")
         return {"output": text, "finish_reason": finish_reason}
 
     except Exception as e:
