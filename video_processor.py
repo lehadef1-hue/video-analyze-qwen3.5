@@ -454,7 +454,7 @@ def process_video_v2(
 
         # ── Categories + orientation + scene segments via VideoTagger ────────────
         logger.info(f"Cats-tagger start: orient_pass1={orientation}")
-        tagger_result = _tagger.tag_video(video_path, verbose=False)
+        tagger_result = _tagger.tag_video(video_path, verbose=True)
         # Use tagger orientation — weighted vote across all scenes, more reliable than Pass1 single pass
         orientation = tagger_result["orientation"]
         cats_raw = _filter_blocked_list(tagger_result["categories"])
