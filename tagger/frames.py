@@ -57,40 +57,50 @@ def detect_scenes(
     """
     Detect scene boundaries via histogram correlation.
     Returns list of (start_frame, end_frame) tuples.
+
+    Uses sequential cap.grab() for skipped frames — avoids costly seeks
+    into compressed video. Downscales to 64x36 for fast histogram computation.
     """
     info = get_video_info(video_path)
     fps = max(info["fps"], 1)
     frame_count = info["frame_count"]
     min_scene_frames = int(min_scene_len_sec * fps)
 
+    # Sample at 2 fps — sufficient for scene boundary detection
+    sample_every = max(1, int(fps / 2))
+
     cap = cv2.VideoCapture(video_path)
     scenes = []
     scene_start = 0
     prev_hist = None
-
-    # Sample at 3 fps to speed up detection
-    sample_every = max(1, int(fps / 3))
-
     frame_idx = 0
+
     try:
         while frame_idx < frame_count:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-            ret, frame = cap.read()
-            if not ret:
-                break
+            if frame_idx % sample_every == 0:
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            hist = cv2.calcHist([gray], [0], None, [64], [0, 256])
-            cv2.normalize(hist, hist)
+                # Tiny resize — histogram doesn't need full resolution
+                small = cv2.resize(frame, (64, 36), interpolation=cv2.INTER_NEAREST)
+                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+                hist = cv2.calcHist([gray], [0], None, [64], [0, 256])
+                cv2.normalize(hist, hist)
 
-            if prev_hist is not None:
-                corr = cv2.compareHist(prev_hist, hist, cv2.HISTCMP_CORREL)
-                if corr < threshold and (frame_idx - scene_start) >= min_scene_frames:
-                    scenes.append((scene_start, frame_idx - 1))
-                    scene_start = frame_idx
+                if prev_hist is not None:
+                    corr = cv2.compareHist(prev_hist, hist, cv2.HISTCMP_CORREL)
+                    if corr < threshold and (frame_idx - scene_start) >= min_scene_frames:
+                        scenes.append((scene_start, frame_idx - 1))
+                        scene_start = frame_idx
 
-            prev_hist = hist
-            frame_idx += sample_every
+                prev_hist = hist
+            else:
+                # grab() acquires without decoding — much faster than read()
+                if not cap.grab():
+                    break
+
+            frame_idx += 1
     finally:
         cap.release()
 
