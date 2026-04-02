@@ -87,11 +87,7 @@ class VideoTagger:
         self.categories = load_categories(categories_path) if categories_path else load_categories()
         self.canonical_map = build_canonical_map(self.categories)
 
-        category_listing = build_category_prompt(self.categories)
-        self._analysis_prompt_template = ANALYSIS_PROMPT_TEMPLATE.format(
-            categories=category_listing,
-            n_grids="{n_grids}",
-        )
+        self._category_listing = build_category_prompt(self.categories)
 
         model_kwargs = {"model_id": model_id} if model_id else {}
         self.model = QwenVLModel(**model_kwargs)
@@ -155,7 +151,10 @@ class VideoTagger:
                     end=" ",
                 )
 
-            scene_prompt = self._analysis_prompt_template.format(n_grids=n_grids)
+            scene_prompt = ANALYSIS_PROMPT_TEMPLATE.format(
+                categories=self._category_listing,
+                n_grids=n_grids,
+            )
 
             raw = self.model.analyze(
                 [seg["grid"] for seg in scene_segs],
