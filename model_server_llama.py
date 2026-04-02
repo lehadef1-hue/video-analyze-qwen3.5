@@ -92,19 +92,12 @@ except ImportError:
 chat_handler = None
 if has_vision:
     try:
-        # Qwen2VLChatHandler поддерживает архитектуру Qwen2.5-VL / Qwen3.5-VL
-        from llama_cpp.llama_chat_format import Qwen2VLChatHandler
-        chat_handler = Qwen2VLChatHandler(clip_model_path=MMPROJ_PATH, verbose=False)
-        logger.info("Vision включён (Qwen2VLChatHandler)")
+        from llama_cpp.llama_chat_format import Qwen25VLChatHandler
+        chat_handler = Qwen25VLChatHandler(clip_model_path=MMPROJ_PATH, verbose=False)
+        logger.info("Vision включён (Qwen25VLChatHandler)")
     except (ImportError, Exception) as e:
-        logger.warning(f"Qwen2VLChatHandler недоступен ({e}), пробуем LlavaQwen2ChatHandler...")
-        try:
-            from llama_cpp.llama_chat_format import LlavaQwen2ChatHandler
-            chat_handler = LlavaQwen2ChatHandler(clip_model_path=MMPROJ_PATH, verbose=False)
-            logger.info("Vision включён (LlavaQwen2ChatHandler)")
-        except (ImportError, Exception) as e2:
-            logger.error(f"Vision handler не загружен: {e2} — работаем без изображений")
-            chat_handler = None
+        logger.error(f"Vision handler не загружен: {e} — работаем без изображений")
+        chat_handler = None
 
 llm = Llama(
     model_path=MODEL_PATH,
