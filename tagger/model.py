@@ -14,7 +14,7 @@ logger = logging.getLogger("tagger.model")
 
 MODEL_SERVER_URL = os.getenv("MODEL_SERVER_URL", "http://localhost:8080/generate")
 
-MAX_NEW_TOKENS = 384
+MAX_NEW_TOKENS = 512
 TEMPERATURE    = 0.05
 
 
@@ -51,7 +51,7 @@ class QwenVLModel:
                 "temperature": TEMPERATURE,
                 "top_p": 0.9,
                 "max_tokens": MAX_NEW_TOKENS,
-                "repetition_penalty": 1.05,
+                "repetition_penalty": 1.15,
             },
         }
 

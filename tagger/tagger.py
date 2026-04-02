@@ -42,9 +42,12 @@ MIN_PASS_COUNT = 1
 ANALYSIS_PROMPT_TEMPLATE = """\
 You are shown {n_grids} images. Each is a 2×2 grid of video frames (left→right, top→bottom = time order).
 
-Look at the images and list what you can clearly see.
+Look at the images and list ONLY what is clearly and unambiguously visible.
 Use ONLY names from the list below. Copy them EXACTLY (case-sensitive).
-Return 3–15 names. Only include what is visually confirmed — when in doubt, omit.
+STRICT RULES:
+- Return EXACTLY 5 to 15 names. No more than 15. Stop after 15.
+- Only include what is visually confirmed — when in doubt, omit.
+- Do NOT repeat names.
 
 {categories}
 
@@ -162,6 +165,10 @@ class VideoTagger:
 
         if verbose:
             print(f"\n{'─'*65}")
+            print(f"Category counts (top-30):")
+            for cat, cnt in category_counter.most_common(30):
+                bar = "█" * cnt
+                print(f"  {bar} {cnt}x  {cat}")
             print(f"Categories ({len(final_categories)}): {final_categories}")
             print(f"Total passes: {total_passes} | Time: {processing_time:.1f}s")
 
