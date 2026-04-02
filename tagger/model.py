@@ -60,7 +60,7 @@ class QwenVLModel:
             resp.raise_for_status()
             output = resp.json().get("output", "").strip()
             if verbose:
-                print(f" → {output[:80]}")
+                print(f" → {output}")
             return output
         except Exception as e:
             logger.exception(f"Model server call failed: {e}")

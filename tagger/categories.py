@@ -17,19 +17,15 @@ def load_categories(path: str | Path = CATEGORIES_PATH) -> dict:
 
 def build_category_prompt(categories: dict) -> str:
     """
-    Build a compact but informative category listing for the model prompt.
-    Groups by section. Includes name + short description.
+    Names-only category listing grouped by section.
+    Compact format keeps prompt short so the model has room to reason about images.
     """
     lines = []
-    for section_key, section in categories.items():
+    for section in categories.values():
         title = section["title"]
+        names = [f'"{cat["name"]}"' for cat in section["categories"]]
         lines.append(f"\n## {title}")
-        for cat in section["categories"]:
-            name = cat["name"]
-            desc = cat.get("description", "")
-            if len(desc) > 300:
-                desc = desc[:297] + "..."
-            lines.append(f'  - "{name}": {desc}')
+        lines.append("  " + ", ".join(names))
     return "\n".join(lines)
 
 
@@ -73,6 +69,9 @@ def parse_model_output(
     """
     orientation: str | None = None
     categories: list[str] = []
+
+    # Strip <think>...</think> blocks before parsing
+    raw_output = re.sub(r'<think>.*?</think>', '', raw_output, flags=re.DOTALL).strip()
 
     # ── Try structured object ─────────────────────────────────────────────────
     obj_match = re.search(r'\{.*\}', raw_output, re.DOTALL)

@@ -144,14 +144,8 @@ async def generate(request: GenerateRequest):
         # repeat_penalty = аналог repetition_penalty в vLLM
         repeat_penalty = params.pop("repetition_penalty", params.pop("repeat_penalty", 1.15))
 
-        # ── Thinking mode ────────────────────────────────
-        # Qwen3: /think = включить, /no_think = выключить (передаётся в начале сообщения)
-        prompt_text = request.prompt
         if request.enable_thinking:
-            prompt_text = "/think\n" + prompt_text
             logger.info("Thinking mode enabled")
-        else:
-            prompt_text = "/no_think\n" + prompt_text
 
         # ── Сборка content ───────────────────────────────
         content: List[Dict] = []
@@ -162,7 +156,7 @@ async def generate(request: GenerateRequest):
                 "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
             })
 
-        content.append({"type": "text", "text": prompt_text})
+        content.append({"type": "text", "text": request.prompt})
 
         messages = [{"role": "user", "content": content}]
 
