@@ -38,23 +38,42 @@ logger = logging.getLogger("model_server_llama")
 
 
 # ─── ENV ─────────────────────────────────────────────────
-MODEL_PATH  = os.environ.get("MODEL_PATH",  "/workspace/models/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf")
-MMPROJ_PATH = os.environ.get("MMPROJ_PATH", "/workspace/models/mmproj-Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-f16.gguf")
+HF_REPO_ID       = os.environ.get("HF_REPO_ID",       "HauhauCS/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive")
+MODEL_FILENAME   = os.environ.get("MODEL_FILENAME",   "Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf")
+MMPROJ_FILENAME  = os.environ.get("MMPROJ_FILENAME",  "mmproj-Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-f16.gguf")
+HF_CACHE         = os.environ.get("HF_CACHE",         "/workspace/hf_cache")
+
+MODEL_PATH   = os.environ.get("MODEL_PATH",   os.path.join(HF_CACHE, MODEL_FILENAME))
+MMPROJ_PATH  = os.environ.get("MMPROJ_PATH",  os.path.join(HF_CACHE, MMPROJ_FILENAME))
 N_GPU_LAYERS = int(os.environ.get("N_GPU_LAYERS", "-1"))   # -1 = all layers on GPU
 N_CTX        = int(os.environ.get("N_CTX",        "32768"))
 N_BATCH      = int(os.environ.get("N_BATCH",      "512"))
 
 
-# ─── Проверка файлов ─────────────────────────────────────
-if not os.path.exists(MODEL_PATH):
-    logger.critical(f"Файл модели не найден: {MODEL_PATH}")
-    logger.critical("Задайте переменную окружения MODEL_PATH")
-    sys.exit(1)
+# ─── Авто-скачивание GGUF файлов ─────────────────────────
+def _download_if_missing(filename: str, dest_path: str) -> None:
+    if os.path.exists(dest_path):
+        return
+    logger.info(f"Файл не найден, скачиваю: {filename} → {dest_path}")
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError:
+        logger.critical("huggingface_hub не установлен. Выполните: pip install huggingface_hub")
+        sys.exit(1)
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename=filename,
+        local_dir=HF_CACHE,
+    )
+    logger.info(f"✓ Скачано: {filename}")
+
+_download_if_missing(MODEL_FILENAME, MODEL_PATH)
+_download_if_missing(MMPROJ_FILENAME, MMPROJ_PATH)
 
 has_vision = os.path.exists(MMPROJ_PATH)
 if not has_vision:
-    logger.warning(f"mmproj не найден: {MMPROJ_PATH} — vision отключён")
-    logger.warning("Задайте переменную окружения MMPROJ_PATH для работы с изображениями")
+    logger.warning(f"mmproj не найден после скачивания: {MMPROJ_PATH} — vision отключён")
 
 
 # ─── Загрузка модели ─────────────────────────────────────
