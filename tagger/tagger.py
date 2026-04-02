@@ -42,36 +42,24 @@ MIN_PASS_COUNT = 1
 
 # ── Orientation detection instruction ────────────────────────────────────────
 
-_ORIENTATION_INSTRUCTION = """\
-
---- ORIENTATION ---
-Choose EXACTLY ONE value: straight | gay | shemale
-- straight  = male+female sex, OR all-female (lesbian = category tag, NOT an orientation)
-- gay       = ONLY male performers having sex with each other — no women present at all
-- shemale   = trans woman (MTF): visibly feminine body (breasts) WITH a penis visible
-
-CRITICAL: "lesbian" is NOT a valid orientation → use "straight".
-CRITICAL: feminine body + visible penis → "shemale", not "straight"."""
-
-# ── Prompt template ───────────────────────────────────────────────────────────
-
 ANALYSIS_PROMPT_TEMPLATE = """\
-You are shown {n_grids} images. Each is a 2×2 grid of frames from one temporal window of a scene.
-Images are ordered chronologically (image 1 = start, image {n_grids} = end of scene).
-Within each grid: frames read left→right, top→bottom (time progression).
+You are shown {n_grids} images. Each is a 2×2 grid of video frames (left→right, top→bottom = time order).
 
-TASK: Tag what is CLEARLY AND VISUALLY CONFIRMED in these frames.
-- Return 3–20 categories. HARD MAXIMUM: 20. Fewer accurate tags > many guessed tags.
-- WHEN IN DOUBT → OMIT. Only tag what you can see, not what you assume.
-- Copy category names EXACTLY as listed below. Case matters.
-- Do NOT invent names not in the list.
+Look at the images and answer:
 
-Available categories:
+1. ORIENTATION — choose one:
+   - straight: male+female, or scene with only women
+   - gay: only male performers with each other
+   - shemale: trans woman — feminine body WITH visible penis
+
+2. CATEGORIES — list what you can clearly see in the images.
+   Use ONLY names from this list. Copy them EXACTLY (case-sensitive).
+   Return 3–15 names. Only include what is visually confirmed.
+
 {categories}
-""" + _ORIENTATION_INSTRUCTION + """
 
-Return a single JSON object — no markdown, no explanation:
-{{"orientation": "straight|gay|shemale", "categories": ["ExactName1", "ExactName2"]}}"""
+Return JSON only, no explanation:
+{{"orientation": "straight|gay|shemale", "categories": ["Name1", "Name2", "Name3"]}}"""
 
 
 class VideoTagger:
