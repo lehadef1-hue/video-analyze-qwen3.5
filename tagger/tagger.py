@@ -60,12 +60,18 @@ You are shown {n_grids} images. Each is a 2×2 grid of frames from one temporal 
 Images are ordered chronologically (image 1 = start, image {n_grids} = end of scene).
 Within each grid: frames read left→right, top→bottom (time progression).
 
+TASK: Tag what is CLEARLY AND VISUALLY CONFIRMED in these frames.
+- Return 3–20 categories. HARD MAXIMUM: 20. Fewer accurate tags > many guessed tags.
+- WHEN IN DOUBT → OMIT. Only tag what you can see, not what you assume.
+- Copy category names EXACTLY as listed below. Case matters.
+- Do NOT invent names not in the list.
+
 Available categories:
 {categories}
 """ + _ORIENTATION_INSTRUCTION + """
 
-Return a single JSON object:
-{{"orientation": "straight|gay|shemale", "categories": ["cat1", "cat2"]}}"""
+Return a single JSON object — no markdown, no explanation:
+{{"orientation": "straight|gay|shemale", "categories": ["ExactName1", "ExactName2"]}}"""
 
 
 class VideoTagger:
@@ -200,6 +206,14 @@ class VideoTagger:
             print(f"Categories ({len(final_categories)}): {final_categories}")
             print(f"Total passes: {total_passes} | Time: {processing_time:.1f}s")
 
+        # Build scene segments list for callers that need timing info
+        scene_segments = []
+        for scene_idx, scene_segs in segments_by_scene.items():
+            scene_segments.append({
+                "start_sec": float(round(scene_segs[0]["start_sec"], 1)),
+                "end_sec":   float(round(scene_segs[-1]["end_sec"], 1)),
+            })
+
         return {
             "video": video_path,
             "duration": duration,
@@ -208,6 +222,7 @@ class VideoTagger:
             "category_counts": dict(category_counter.most_common()),
             "orientation_votes": dict(orientation_counter),
             "scenes_detected": n_scenes,
+            "scene_segments": scene_segments,
             "total_passes": total_passes,
             "processing_time": processing_time,
         }

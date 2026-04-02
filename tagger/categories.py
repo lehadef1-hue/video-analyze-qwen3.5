@@ -27,9 +27,8 @@ def build_category_prompt(categories: dict) -> str:
         for cat in section["categories"]:
             name = cat["name"]
             desc = cat.get("description", "")
-            # Truncate description to keep prompt manageable
-            if len(desc) > 120:
-                desc = desc[:117] + "..."
+            if len(desc) > 300:
+                desc = desc[:297] + "..."
             lines.append(f'  - "{name}": {desc}')
     return "\n".join(lines)
 
