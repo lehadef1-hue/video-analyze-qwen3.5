@@ -55,12 +55,15 @@ class QwenVLModel:
             },
         }
 
+        if verbose:
+            print(f"\n  [PROMPT LAST 300]: ...{prompt[-300:]}")
+
         try:
             resp = requests.post(self.model_server_url, json=payload, timeout=420)
             resp.raise_for_status()
             output = resp.json().get("output", "").strip()
             if verbose:
-                print(f" → {output}")
+                print(f"  [RAW OUTPUT]: {output}")
             return output
         except Exception as e:
             logger.exception(f"Model server call failed: {e}")
