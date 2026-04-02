@@ -65,6 +65,7 @@ echo "[3/4] Installing project dependencies..."
 pip install \
     fastapi \
     "uvicorn[standard]" \
+    python-multipart \
     opencv-python-headless \
     pillow \
     requests \
