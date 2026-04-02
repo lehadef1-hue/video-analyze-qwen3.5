@@ -94,8 +94,8 @@ def validate_categories(
 
     requires_penis = {
         "blowjob", "deepthroat", "handjob", "titty fucking", "footjob",
-        "cumshot", "facial", "creampie", "big dick", "small dick",
-        "cock & ball torture",
+        "cumshot", "facial", "creampie", "big cock", "small cock",
+        "cbt",
     }
     requires_vagina = {
         "pussy licking", "squirt",
@@ -107,12 +107,12 @@ def validate_categories(
         "amateur", "pornstar", "webcam", "onlyfans", "casting", "crossdresser",
     }
     animation_types = {
-        "3d animation", "anime", "cartoon", "hentai", "furry", "futanari", "tentacle",
+        "3d", "anime", "cartoon", "hentai", "furry", "futanari", "tentacle",
     }
     real_performer_indicators = {
         "pornstar", "amateur",
-        "blonde", "brunette", "red head", "black hair",
-        "big tits", "small tits", "big ass", "big dick", "small dick",
+        "blonde", "brunette", "red head",
+        "big tits", "small tits", "big ass", "big cock", "small cock",
         "teen", "mature", "milf", "granny",
         "oiled", "tattoo", "hairy", "bbw", "chubby", "skinny",
     }
@@ -124,13 +124,13 @@ def validate_categories(
     if orientation == "gay":
         # All-male: no vaginal acts, no female-only tags, no strap-on pegging
         remove(*requires_vagina, *female_only, "granny",
-               "lesbian", "pegging", "strap on", "futanari",
+               "lesbian", "pegging", "strapon", "futanari",
                "big tits", "small tits")
 
     elif orientation == "shemale":
         # Trans performer (has penis): no vaginal acts
         remove(*requires_vagina, "pregnant", "lactating",
-               "lesbian", "gay", "pegging", "strap on")
+               "lesbian", "gay", "pegging", "strapon")
 
     elif orientation == "straight":
         remove("gay")
@@ -207,21 +207,21 @@ def validate_categories(
     has_young = bool(age_young & cats_l)
     has_old   = bool(age_old & cats_l)
 
-    # Auto-tag Old/Young when both age brackets are present together
-    if has_young and has_old and "old/young" not in cats_l:
-        add("Old/Young")
+    # Auto-tag Old & Young when both age brackets are present together
+    if has_young and has_old and "old & young" not in cats_l:
+        add("Old & Young")
 
     cats_l = cl()
 
-    # Remove Old/Young if only one bracket is present (mislabeled)
-    if "old/young" in cats_l and not (has_young and has_old):
-        remove("Old/Young")
+    # Remove Old & Young if only one bracket is present (mislabeled)
+    if "old & young" in cats_l and not (has_young and has_old):
+        remove("Old & Young")
 
     cats_l = cl()
 
     # In single-performer context: age brackets are mutually exclusive.
     # Resolve by count (which bracket was seen more consistently).
-    if "old/young" not in cats_l and not is_multi:
+    if "old & young" not in cats_l and not is_multi:
         present_old = age_old & cats_l
 
         if has_young and present_old:
@@ -258,11 +258,11 @@ def validate_categories(
             "group", "threesome", "gangbang", "couple",
             "double penetration", "bisexual male", "lesbian", "cuckold",
             "pussy licking", "rimjob", "blowjob", "deepthroat",
-            "handjob", "titty fucking", "footjob", "cock & ball torture",
-            "pegging", "strap on", "fisting",
+            "handjob", "titty fucking", "footjob", "cbt",
+            "pegging", "strapon", "fisting",
             "cumshot", "facial", "creampie",
-            "casting", "interracial", "old/young",
-            "femdom", "maledom", "bondage",
+            "casting", "interracial", "old & young",
+            "femdom", "bondage",
         )
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -271,13 +271,7 @@ def validate_categories(
     cats_l = cl()
 
     if orientation == "gay":
-        remove("Femdom", "Maledom")  # gender-coded, no meaning in all-male scene
-
-    cats_l = cl()
-
-    if "femdom" in cats_l and "maledom" in cats_l:
-        loser = resolve_pair("Femdom", "Maledom", default_keep="Femdom")
-        remove("Femdom" if loser != "Femdom" else "Maledom")
+        remove("Femdom")  # gender-coded, no meaning in all-male scene
 
     # ══════════════════════════════════════════════════════════════════════════
     # 6. Body attribute mutual exclusions  (count-aware)
@@ -291,41 +285,34 @@ def validate_categories(
 
     cats_l = cl()
 
-    # Ass size: mutually exclusive in single-performer context
-    if "big ass" in cats_l and "small ass" in cats_l and not is_multi:
-        loser = resolve_pair("Big Ass", "Small Ass", default_keep="Big Ass")
-        remove("Big Ass" if loser != "Big Ass" else "Small Ass")
-
-    cats_l = cl()
-
     # Dick size: mutually exclusive
-    if "big dick" in cats_l and "small dick" in cats_l:
-        loser = resolve_pair("Big Dick", "Small Dick", default_keep="Big Dick")
-        remove("Big Dick" if loser != "Big Dick" else "Small Dick")
+    if "big cock" in cats_l and "small cock" in cats_l:
+        loser = resolve_pair("Big Cock", "Small Cock", default_keep="Big Cock")
+        remove("Big Cock" if loser != "Big Cock" else "Small Cock")
 
     cats_l = cl()
 
     # Body type: mutually exclusive in single-performer context
-    # Priority when tied: BBW > Chubby > Skinny > Athletic/Fit
-    body_types = {"bbw", "chubby", "skinny", "athletic", "fit"}
+    # Priority when tied: BBW > Chubby > Skinny
+    body_types = {"bbw", "chubby", "skinny"}
     present_body = body_types & cats_l
     if len(present_body) > 1 and not is_multi:
         keep = resolve_group(
             list(present_body),
-            ["BBW", "Chubby", "Skinny", "Athletic", "Fit"],
+            ["BBW", "Chubby", "Skinny"],
         )
         remove(*[b for b in present_body if b != keep.lower()])
 
     cats_l = cl()
 
     # Hair color: mutually exclusive in single-performer context
-    # Priority when tied: Blonde > Brunette > Red Head > Black Hair
-    hair_colors = {"blonde", "brunette", "red head", "black hair"}
+    # Priority when tied: Blonde > Brunette > Red Head
+    hair_colors = {"blonde", "brunette", "red head"}
     present_hair = hair_colors & cats_l
     if len(present_hair) > 1 and not is_multi:
         keep = resolve_group(
             list(present_hair),
-            ["Blonde", "Brunette", "Red Head", "Black Hair"],
+            ["Blonde", "Brunette", "Red Head"],
         )
         remove(*[h for h in present_hair if h != keep.lower()])
 
@@ -397,7 +384,7 @@ def validate_categories(
 
     if "gameplay video" in cats_l:
         keep_set = {"gameplay video", "hd", "4k", "vertical video", "virtual reality",
-                    "vintage", "anime", "cartoon", "3d animation"}
+                    "vintage", "anime", "cartoon", "3d"}
         cats = [c for c in cats if c.lower() in keep_set]
 
     elif any(a in cats_l for a in animation_types):
@@ -411,14 +398,14 @@ def validate_categories(
             if counts and real_score != anim_score:
                 if real_score > anim_score:
                     # Real performers dominate — animation tags are false positives
-                    remove("Anime", "Hentai", "Cartoon", "3D Animation",
+                    remove("Anime", "Hentai", "Cartoon", "3D",
                            "Furry", "Futanari", "Tentacle")
                 else:
                     # Animation dominates — real-performer tags are false positives
                     remove(*real_only)
             else:
                 # No counts or tied — default: real evidence removes animation tags
-                remove("Anime", "Hentai", "Cartoon", "3D Animation",
+                remove("Anime", "Hentai", "Cartoon", "3D",
                        "Furry", "Futanari", "Tentacle")
         else:
             # No real-performer indicators at all → confirmed animation

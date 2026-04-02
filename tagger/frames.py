@@ -36,7 +36,7 @@ def extract_frames_range(
     if count <= 0:
         return []
 
-    indices = np.linspace(start_frame, end_frame, n_frames, dtype=int)
+    indices = np.linspace(start_frame, end_frame, n_frames).astype(int)
     frames = []
     cap = cv2.VideoCapture(video_path)
     for idx in indices:

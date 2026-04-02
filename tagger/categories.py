@@ -113,12 +113,6 @@ def parse_model_output(
     return orientation, sorted(results)
 
 
-def normalize_model_output(raw_output: str, canonical_map: dict[str, str]) -> list[str]:
-    """Legacy wrapper — returns only categories."""
-    _, cats = parse_model_output(raw_output, canonical_map)
-    return cats
-
-
 def _parse_cat_list(items: list, canonical_map: dict[str, str]) -> list[str]:
     results = set()
     for item in items:
@@ -150,9 +144,3 @@ def _find_canonical(text: str, canonical_map: dict[str, str]) -> str | None:
     return best
 
 
-def get_all_category_names(categories: dict) -> list[str]:
-    names = []
-    for section in categories.values():
-        for cat in section["categories"]:
-            names.append(cat["name"])
-    return names

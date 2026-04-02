@@ -46,6 +46,7 @@ os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache/hub"
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
 MODEL_NAME = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"
+# HauhauCS/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive/blob/main/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf
 CACHE_DIR = "/workspace/hf_cache/hub"
 
 
