@@ -148,7 +148,8 @@ def decode_base64_image(b64: str) -> Image.Image:
 async def generate(request: GenerateRequest):
     images = []
     outputs = None
-    video_mode = request.fps is not None and len(request.base64_images) > 0
+    # qwen3vl does not support vLLM video mode — always use image mode
+    video_mode = request.fps is not None and len(request.base64_images) > 0 and MODEL_PRESET != "qwen3vl"
     try:
         images = [decode_base64_image(b) for b in request.base64_images]
 
