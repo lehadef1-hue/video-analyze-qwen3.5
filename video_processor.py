@@ -438,17 +438,12 @@ def process_video_v2(
         ts_map = "  ".join(f"F{i}={_fmt_ts(t)}" for i, t in enumerate(ts_1a))
         desc_style = DESCRIPTION_STYLES.get(style, DESCRIPTION_STYLES["standard"])
 
-        # fps for video mode: 25 frames spread across usable duration
-        usable_sec = (ts_1a[-1] - ts_1a[0]) if len(ts_1a) > 1 else 1.0
-        pass1_fps = round(len(frames_1a) / max(usable_sec, 1.0), 2)
-
-        logger.info(f"Pass1 start: frames={len(frames_1a)} fps={pass1_fps} lang={language}")
+        logger.info(f"Pass1 start: frames={len(frames_1a)} lang={language}")
         raw1 = call_vision_model(
             build_analysis_prompt(len(frames_1a), ts_map, desc_style, language),
             frames_1a,
             {"temperature": 0.45, "top_p": 0.85, "max_tokens": 2000},
             pass_name="Pass1",
-            fps=pass1_fps,
         )
         p1 = extract_json_from_response(raw1)
         if not p1:
