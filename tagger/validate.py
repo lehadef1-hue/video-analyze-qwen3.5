@@ -143,14 +143,14 @@ def validate_categories(
     # ══════════════════════════════════════════════════════════════════════════
     cats_l = cl()
 
-    # Gangbang always implies Group
-    if "gangbang" in cats_l and "group" not in cats_l:
-        add("Group")
+    # Gangbang always implies Group Sex
+    if "gangbang" in cats_l and "group sex" not in cats_l:
+        add("Group Sex")
 
     cats_l = cl()
 
-    # Threesome (3) vs Group (4+) — keep Group
-    if "threesome" in cats_l and "group" in cats_l:
+    # Threesome (3) vs Group Sex (4+) — keep Group Sex
+    if "threesome" in cats_l and "group sex" in cats_l:
         remove("Threesome")
 
     cats_l = cl()
