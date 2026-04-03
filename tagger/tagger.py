@@ -192,9 +192,13 @@ class VideoTagger:
             total_passes += 1
 
         # ══ Aggregate ══════════════════════════════════════════════════════════
+        # Solo requires unanimous detection — must appear in every scene
+        solo_threshold = total_passes if total_passes > 0 else 1
+
         raw_categories = sorted(
             cat for cat, count in category_counter.items()
             if count >= self.min_pass_count
+            and not (cat.lower() == "solo" and count < solo_threshold)
         )
 
         final_categories = sorted(
