@@ -148,17 +148,16 @@ def decode_base64_image(b64: str) -> Image.Image:
 async def generate(request: GenerateRequest):
     images = []
     outputs = None
-    # qwen3vl does not support vLLM video mode — always use image mode
-    video_mode = request.fps is not None and len(request.base64_images) > 0 and MODEL_PRESET != "qwen3vl"
+    # vLLM video mode (multi_modal_data "video") requires VideoMetadata — not supported via PIL.
+    # Both grid mode and frame mode use image inputs; fps param is informational only.
     try:
         images = [decode_base64_image(b) for b in request.base64_images]
 
-        if video_mode:
-            logger.info(f"Video mode: {len(images)} frames @ {request.fps} fps  preset={MODEL_PRESET}")
-            content = [{"type": "video"}, {"type": "text", "text": request.prompt}]
-        else:
-            content = [{"type": "image", "image": img} for img in images]
-            content.append({"type": "text", "text": request.prompt})
+        if request.fps is not None and images:
+            logger.info(f"Frame mode: {len(images)} sequential frames @ {request.fps} fps  preset={MODEL_PRESET}")
+
+        content = [{"type": "image", "image": img} for img in images]
+        content.append({"type": "text", "text": request.prompt})
 
         conversation = [{"role": "user", "content": content}]
 
@@ -201,15 +200,10 @@ async def generate(request: GenerateRequest):
         sampling = SamplingParams(**params)
 
         if images:
-            mm_key = "video" if video_mode else "image"
-            mm_data: Dict[str, Any] = {mm_key: images}
-            # Qwen3.5: pass per-request fps so the video preprocessor knows the frame rate
-            if video_mode and MODEL_PRESET == "qwen35":
-                mm_data["fps"] = request.fps
             outputs = llm.generate(
                 {
                     "prompt": full_prompt,
-                    "multi_modal_data": mm_data,
+                    "multi_modal_data": {"image": images},
                 },
                 sampling,
             )
