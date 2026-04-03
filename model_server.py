@@ -64,10 +64,10 @@ _PRESETS = {
     "qwen35": {
         "model_name":  "Qwen/Qwen3.5-27B-FP8",
         "max_model_len": 32768,
-        "limit_mm_per_prompt": {"image": 16},
+        "limit_mm_per_prompt": {"image": 25},
         "mm_processor_kwargs": {
-            "min_pixels": 256 * 28 * 28,
-            "max_pixels": 512 * 28 * 28,
+            "min_pixels": 128 * 28 * 28,
+            "max_pixels": 256 * 28 * 28,
         },
     },
 }
