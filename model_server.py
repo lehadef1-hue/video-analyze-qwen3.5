@@ -45,9 +45,42 @@ os.environ["HF_HUB_CACHE"] = "/workspace/hf_cache/hub"
 os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache/hub"
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
-MODEL_NAME = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"
-# MODEL_NAME = "Qwen/Qwen3.5-27B-FP8"
-CACHE_DIR = "/workspace/hf_cache/hub"
+# ─── Выбор модели ───────────────────────────────────────
+# Поддерживаемые модели:
+#   qwen3vl   → Qwen/Qwen3-VL-30B-A3B-Instruct-FP8   (vision, image mode)
+#   qwen35    → Qwen/Qwen3.5-27B-FP8                  (native multimodal, video mode)
+MODEL_PRESET = os.getenv("MODEL_PRESET", "qwen3vl")
+
+_PRESETS = {
+    "qwen3vl": {
+        "model_name":  "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
+        "max_model_len": 32768,
+        "limit_mm_per_prompt": {"image": 25},
+        "mm_processor_kwargs": {
+            "min_pixels": 256 * 28 * 28,
+            "max_pixels": 512 * 28 * 28,
+        },
+    },
+    "qwen35": {
+        "model_name":  "Qwen/Qwen3.5-27B-FP8",
+        "max_model_len": 32768,
+        "limit_mm_per_prompt": {"video": 1},
+        "mm_processor_kwargs": {
+            "fps": 2,
+            "do_sample_frames": True,
+        },
+    },
+}
+
+if MODEL_PRESET not in _PRESETS:
+    logger.critical(f"Неизвестный MODEL_PRESET={MODEL_PRESET!r}. Допустимые: {list(_PRESETS)}")
+    sys.exit(1)
+
+_preset   = _PRESETS[MODEL_PRESET]
+MODEL_NAME = _preset["model_name"]
+CACHE_DIR  = "/workspace/hf_cache/hub"
+
+logger.info(f"MODEL_PRESET={MODEL_PRESET}  →  {MODEL_NAME}")
 
 
 # ─── Проверка GPU ───────────────────────────────────────
@@ -83,21 +116,18 @@ llm = LLM(
     download_dir=CACHE_DIR,
     dtype="auto",
     gpu_memory_utilization=gpu_util,
-    max_model_len=32768,
+    max_model_len=_preset["max_model_len"],
     enforce_eager=True,
     tensor_parallel_size=1,
-    limit_mm_per_prompt={"image": 25},
-    mm_processor_kwargs={
-        "min_pixels": 256 * 28 * 28,   # ~200k px  ≈ 256 tokens/image
-        "max_pixels": 512 * 28 * 28,   # ~400k px  ≈ 512 tokens/image max
-    },
+    limit_mm_per_prompt=_preset["limit_mm_per_prompt"],
+    mm_processor_kwargs=_preset["mm_processor_kwargs"],
 )
 
 logger.info("✓ Модель успешно загружена")
 
 
 # ─── FastAPI ────────────────────────────────────────────
-app = FastAPI(title="Qwen-VL-30B FP8 Server")
+app = FastAPI(title=f"Model Server [{MODEL_PRESET}]")
 
 
 class GenerateRequest(BaseModel):
@@ -123,11 +153,9 @@ async def generate(request: GenerateRequest):
         images = [decode_base64_image(b) for b in request.base64_images]
 
         if video_mode:
-            # Video mode: frames treated as a temporal sequence with fps
-            logger.info(f"Video mode: {len(images)} frames @ {request.fps} fps")
+            logger.info(f"Video mode: {len(images)} frames @ {request.fps} fps  preset={MODEL_PRESET}")
             content = [{"type": "video"}, {"type": "text", "text": request.prompt}]
         else:
-            # Image mode: each image is a separate visual input (default)
             content = [{"type": "image", "image": img} for img in images]
             content.append({"type": "text", "text": request.prompt})
 
@@ -143,19 +171,29 @@ async def generate(request: GenerateRequest):
         if request.enable_thinking:
             logger.info("Thinking mode enabled for this request")
 
-        params = request.sampling_params or {
-            "temperature": 0.7,
-            "top_p": 0.95,
-            "max_tokens": 96
-        }
-        # Repetition penalty prevents infinite "Wait, let me look..." loops
+        # Default sampling params differ per model
+        if MODEL_PRESET == "qwen35":
+            default_params = {
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "top_k": 20,
+                "presence_penalty": 1.5,
+                "max_tokens": 512,
+            }
+        else:
+            default_params = {
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "max_tokens": 96,
+            }
+
+        params = request.sampling_params or default_params
         params.setdefault("repetition_penalty", 1.15)
+
         if request.guided_json:
             if _StructuredOutputsParams is not None:
-                # vLLM >= 0.12: new API
                 params["structured_outputs"] = _StructuredOutputsParams(json=request.guided_json)
             elif _GuidedDecodingParams is not None:
-                # vLLM 0.4–0.11: old API
                 params["guided_decoding"] = _GuidedDecodingParams(json=request.guided_json)
             else:
                 logger.warning("Structured output not supported by this vLLM build — skipping")
@@ -163,12 +201,16 @@ async def generate(request: GenerateRequest):
 
         if images:
             mm_key = "video" if video_mode else "image"
+            mm_data: Dict[str, Any] = {mm_key: images}
+            # Qwen3.5: pass per-request fps so the video preprocessor knows the frame rate
+            if video_mode and MODEL_PRESET == "qwen35":
+                mm_data["fps"] = request.fps
             outputs = llm.generate(
                 {
                     "prompt": full_prompt,
-                    "multi_modal_data": {mm_key: images}
+                    "multi_modal_data": mm_data,
                 },
-                sampling
+                sampling,
             )
         else:
             outputs = llm.generate(full_prompt, sampling)

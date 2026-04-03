@@ -13,24 +13,33 @@ echo "=== videoQwen setup ==="
 echo "Project : $PROJECT_DIR"
 echo "Venv    : $VENV_DIR"
 echo
-echo "Выберите бэкенд модели:"
-echo "  1) vLLM        — Qwen/Qwen3-VL-30B-A3B-Instruct-FP8  (HuggingFace, ~30 GB VRAM)"
-echo "  2) llama.cpp   — GGUF модель с mmproj (напр. HauhauCS/Qwen3.5-27B-Uncensored Q8_0, ~27 GB VRAM)"
+echo "Выберите бэкенд и модель:"
+echo "  1) vLLM  + Qwen3-VL-30B-FP8    (vision-language, image grids, ~30 GB VRAM)"
+echo "  2) vLLM  + Qwen3.5-27B-FP8     (native multimodal, video mode,  ~28 GB VRAM)"
+echo "  3) llama.cpp — GGUF модель с mmproj (HauhauCS/Qwen3.5-27B-Uncensored, ~27 GB VRAM)"
 echo
-read -r -p "Введите 1 или 2: " BACKEND_CHOICE
+read -r -p "Введите 1, 2 или 3: " BACKEND_CHOICE
 
 case "$BACKEND_CHOICE" in
     1)
         BACKEND="vllm"
-        echo "→ Выбран бэкенд: vLLM"
+        MODEL_PRESET="qwen3vl"
+        TAGGER_MODE="grid"
+        echo "→ vLLM + Qwen3-VL-30B-FP8  (grid mode)"
         ;;
     2)
+        BACKEND="vllm"
+        MODEL_PRESET="qwen35"
+        TAGGER_MODE="video"
+        echo "→ vLLM + Qwen3.5-27B-FP8  (video mode)"
+        ;;
+    3)
         BACKEND="llama"
+        MODEL_PRESET=""
+        TAGGER_MODE="video"
         MODEL_PATH="$HF_CACHE/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf"
         MMPROJ_PATH="$HF_CACHE/mmproj-Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-f16.gguf"
-        echo "→ Выбран бэкенд: llama.cpp"
-        echo "  MODEL_PATH  = $MODEL_PATH"
-        echo "  MMPROJ_PATH = $MMPROJ_PATH"
+        echo "→ llama.cpp  MODEL_PATH=$MODEL_PATH"
         ;;
     *)
         echo "Неверный выбор. Завершение."
@@ -89,15 +98,16 @@ echo
 echo "Generating start scripts..."
 
 if [ "$BACKEND" = "vllm" ]; then
-    cat > "$PROJECT_DIR/start_model_server.sh" << 'EOF'
+    cat > "$PROJECT_DIR/start_model_server.sh" << EOF
 #!/usr/bin/env bash
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$PROJECT_DIR/.venv/bin/activate"
+PROJECT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+source "\$PROJECT_DIR/.venv/bin/activate"
 export HF_HOME="/workspace/hf_cache"
 export HF_HUB_CACHE="/workspace/hf_cache/hub"
 export TRANSFORMERS_CACHE="/workspace/hf_cache/hub"
 export HF_HUB_DISABLE_XET=1
-cd "$PROJECT_DIR"
+export MODEL_PRESET="$MODEL_PRESET"
+cd "\$PROJECT_DIR"
 uvicorn model_server:app --host 0.0.0.0 --port 8080
 EOF
     chmod +x "$PROJECT_DIR/start_model_server.sh"
@@ -120,27 +130,15 @@ EOF
     MODEL_SERVER_SCRIPT="start_model_server_llama.sh"
 fi
 
-if [ "$BACKEND" = "llama" ]; then
-    cat > "$PROJECT_DIR/start_app.sh" << 'EOF'
+cat > "$PROJECT_DIR/start_app.sh" << EOF
 #!/usr/bin/env bash
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$PROJECT_DIR/.venv/bin/activate"
+PROJECT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+source "\$PROJECT_DIR/.venv/bin/activate"
 export PERFORMER_DB_PATH="/workspace/my_performers.pkl"
-export TAGGER_MODE=video
-cd "$PROJECT_DIR"
+export TAGGER_MODE=$TAGGER_MODE
+cd "\$PROJECT_DIR"
 uvicorn video_processor:app --host 0.0.0.0 --port 8000
 EOF
-else
-    cat > "$PROJECT_DIR/start_app.sh" << 'EOF'
-#!/usr/bin/env bash
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$PROJECT_DIR/.venv/bin/activate"
-export PERFORMER_DB_PATH="/workspace/my_performers.pkl"
-export TAGGER_MODE=grid
-cd "$PROJECT_DIR"
-uvicorn video_processor:app --host 0.0.0.0 --port 8000
-EOF
-fi
 chmod +x "$PROJECT_DIR/start_app.sh"
 
 # ── Итог ─────────────────────────────────────────────────────────────────────
