@@ -53,6 +53,28 @@ def build_canonical_map(categories: dict) -> dict[str, str]:
     return mapping
 
 
+def build_guided_schema(categories: dict) -> dict:
+    """
+    Build a JSON schema for vLLM structured output (guided decoding).
+    Forces model to ONLY output names that exist in the category list.
+    """
+    all_names = []
+    for section in categories.values():
+        for cat in section["categories"]:
+            all_names.append(cat["name"])
+    return {
+        "type": "object",
+        "properties": {
+            "categories": {
+                "type": "array",
+                "items": {"type": "string", "enum": all_names},
+                "maxItems": 15,
+            }
+        },
+        "required": ["categories"],
+    }
+
+
 VALID_ORIENTATIONS = {"straight", "gay", "shemale"}
 
 

@@ -40,6 +40,7 @@ class QwenVLModel:
         images: list[Image.Image],
         prompt: str,
         fps: float | None = None,
+        guided_json: dict | None = None,
         segment_info: dict | None = None,
         verbose: bool = False,
     ) -> str:
@@ -57,6 +58,8 @@ class QwenVLModel:
         }
         if fps is not None:
             payload["fps"] = fps
+        if guided_json is not None:
+            payload["guided_json"] = guided_json
 
         if verbose:
             print(f"\n  [PROMPT LAST 300]: ...{prompt[-300:]}")

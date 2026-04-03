@@ -22,7 +22,7 @@ from collections import Counter
 from pathlib import Path
 
 from .frames import get_video_info, get_scene_segments, make_grid
-from .categories import load_categories, build_category_prompt, build_canonical_map, parse_model_output
+from .categories import load_categories, build_category_prompt, build_canonical_map, build_guided_schema, parse_model_output
 from .validate import validate_categories
 from .model import QwenVLModel
 
@@ -94,6 +94,7 @@ class VideoTagger:
         self.categories = load_categories(categories_path) if categories_path else load_categories()
         self.canonical_map = build_canonical_map(self.categories)
         self._category_listing = build_category_prompt(self.categories)
+        self._guided_schema = build_guided_schema(self.categories)
 
         model_kwargs = {"model_id": model_id} if model_id else {}
         self.model = QwenVLModel(**model_kwargs)
@@ -165,7 +166,7 @@ class VideoTagger:
                     categories=self._category_listing,
                     n_grids=n_grids,
                 )
-                raw = self.model.analyze(grids, scene_prompt, fps=None, verbose=verbose)
+                raw = self.model.analyze(grids, scene_prompt, fps=None, guided_json=self._guided_schema, verbose=verbose)
 
             else:
                 # Video mode: send individual frames with fps
@@ -177,7 +178,7 @@ class VideoTagger:
                     )
 
                 scene_prompt = _PROMPT_VIDEO.format(categories=self._category_listing)
-                raw = self.model.analyze(frames, scene_prompt, fps=TAGGER_FPS, verbose=verbose)
+                raw = self.model.analyze(frames, scene_prompt, fps=TAGGER_FPS, guided_json=self._guided_schema, verbose=verbose)
 
             _, cats = parse_model_output(raw, self.canonical_map)
 
