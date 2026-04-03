@@ -50,32 +50,34 @@ DEFAULT_MODE = os.getenv("TAGGER_MODE", "grid")
 _PROMPT_VIDEO = """\
 You are analyzing a video scene. The frames are shown in chronological order.
 
-Look at the frames and list ONLY what is clearly and unambiguously visible.
-Use ONLY names from the list below. Copy them EXACTLY (case-sensitive).
-STRICT RULES:
-- Return EXACTLY 5 to 15 names. No more than 15. Stop after 15.
-- Only include what is visually confirmed — when in doubt, omit.
-- Do NOT repeat names.
-
+ALLOWED CATEGORY NAMES (you may ONLY use names from this list):
 {categories}
 
-Return JSON only, no explanation:
-{{"categories": ["Name1", "Name2", "Name3"]}}"""
+TASK: Look at the frames. Pick 5–15 names from the list above that are clearly and unambiguously visible.
+RULES:
+- Copy names EXACTLY as written above (case-sensitive).
+- Do NOT invent names. Do NOT use words not in the list above.
+- Do NOT repeat names. No more than 15.
+- When in doubt — omit.
+
+Return JSON only:
+{{"categories": ["Name1", "Name2"]}}"""
 
 _PROMPT_GRID = """\
 You are shown {n_grids} images. Each is a 2×2 grid of video frames (left→right, top→bottom = time order).
 
-Look at the images and list ONLY what is clearly and unambiguously visible.
-Use ONLY names from the list below. Copy them EXACTLY (case-sensitive).
-STRICT RULES:
-- Return EXACTLY 5 to 15 names. No more than 15. Stop after 15.
-- Only include what is visually confirmed — when in doubt, omit.
-- Do NOT repeat names.
-
+ALLOWED CATEGORY NAMES (you may ONLY use names from this list):
 {categories}
 
-Return JSON only, no explanation:
-{{"categories": ["Name1", "Name2", "Name3"]}}"""
+TASK: Look at the images. Pick 5–15 names from the list above that are clearly and unambiguously visible.
+RULES:
+- Copy names EXACTLY as written above (case-sensitive).
+- Do NOT invent names. Do NOT use words not in the list above.
+- Do NOT repeat names. No more than 15.
+- When in doubt — omit.
+
+Return JSON only:
+{{"categories": ["Name1", "Name2"]}}"""
 
 
 class VideoTagger:
