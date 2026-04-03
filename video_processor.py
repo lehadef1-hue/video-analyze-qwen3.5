@@ -459,6 +459,9 @@ def process_video_v2(
         logger.info(f"Cats-tagger start: orient_pass1={orientation}")
         tagger_result = _tagger.tag_video(video_path, orientation=orientation, verbose=True)
         cats_raw = _filter_blocked_list(tagger_result["categories"])
+        # Sort by frequency descending, then trim to category_count
+        counts = tagger_result.get("category_counts", {})
+        cats_raw = sorted(cats_raw, key=lambda c: counts.get(c, 0), reverse=True)
         final_categories = cats_raw
 
         # Build key_scenes from tagger scene segments (no redundant model pass)
