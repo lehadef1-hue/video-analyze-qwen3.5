@@ -120,14 +120,27 @@ EOF
     MODEL_SERVER_SCRIPT="start_model_server_llama.sh"
 fi
 
-cat > "$PROJECT_DIR/start_app.sh" << 'EOF'
+if [ "$BACKEND" = "llama" ]; then
+    cat > "$PROJECT_DIR/start_app.sh" << 'EOF'
 #!/usr/bin/env bash
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$PROJECT_DIR/.venv/bin/activate"
 export PERFORMER_DB_PATH="/workspace/my_performers.pkl"
+export TAGGER_MODE=video
 cd "$PROJECT_DIR"
 uvicorn video_processor:app --host 0.0.0.0 --port 8000
 EOF
+else
+    cat > "$PROJECT_DIR/start_app.sh" << 'EOF'
+#!/usr/bin/env bash
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$PROJECT_DIR/.venv/bin/activate"
+export PERFORMER_DB_PATH="/workspace/my_performers.pkl"
+export TAGGER_MODE=grid
+cd "$PROJECT_DIR"
+uvicorn video_processor:app --host 0.0.0.0 --port 8000
+EOF
+fi
 chmod +x "$PROJECT_DIR/start_app.sh"
 
 # ── Итог ─────────────────────────────────────────────────────────────────────

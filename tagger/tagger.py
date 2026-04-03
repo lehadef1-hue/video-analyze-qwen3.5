@@ -4,8 +4,10 @@ Main video tagger.
 Pipeline:
   1. Scene detection via histogram correlation (up to MAX_SCENES=8)
   2. Each scene → PASSES_PER_SCENE=4 temporal windows × FRAMES_PER_PASS=4 frames
-     All frames from a scene sent as a video sequence (fps=2) in ONE model call
-  3. Model returns categories per scene
+
+  Two modes (TAGGER_MODE env or mode= param):
+    "video" — frames sent as video sequence with fps=2 (native Qwen3-VL video input)
+    "grid"  — frames composed into 2×2 grids, sent as images (legacy mode)
 
   Aggregation:
     • Union all detections with frequency counts
@@ -14,11 +16,12 @@ Pipeline:
 Total calls: MAX_SCENES  (e.g. 8 scenes ≈ 25-35s on A40)
 """
 
+import os
 import time
 from collections import Counter
 from pathlib import Path
 
-from .frames import get_video_info, get_scene_segments
+from .frames import get_video_info, get_scene_segments, make_grid
 from .categories import load_categories, build_category_prompt, build_canonical_map, parse_model_output
 from .validate import validate_categories
 from .model import QwenVLModel
@@ -27,21 +30,42 @@ from .model import QwenVLModel
 
 MAX_SCENES       = 8    # max scenes to analyze
 PASSES_PER_SCENE = 4    # temporal windows per scene
-FRAMES_PER_PASS  = 4    # frames per window → total 16 frames per scene
+FRAMES_PER_PASS  = 4    # frames per window
+GRID_COLS        = 2    # grid columns for grid mode (2×2)
 
 MIN_SCENE_SEC  = 3.0  # ignore scenes shorter than this
-TAGGER_FPS     = 2.0  # fps value sent to model (frames are sampled at this rate)
+TAGGER_FPS     = 2.0  # fps value sent to model in video mode
 
 # Category must appear in at least this many scenes to be included
 MIN_PASS_COUNT = 1
 
+# Default mode: "video" or "grid" (override with TAGGER_MODE env var)
+# "grid"  — vLLM backend (model_server.py)   → 2×2 grid images
+# "video" — llama.cpp backend (model_server_llama.py) → frames + fps
+DEFAULT_MODE = os.getenv("TAGGER_MODE", "grid")
 
-# ── Prompt template ───────────────────────────────────────────────────────────
 
-ANALYSIS_PROMPT_TEMPLATE = """\
+# ── Prompt templates ──────────────────────────────────────────────────────────
+
+_PROMPT_VIDEO = """\
 You are analyzing a video scene. The frames are shown in chronological order.
 
 Look at the frames and list ONLY what is clearly and unambiguously visible.
+Use ONLY names from the list below. Copy them EXACTLY (case-sensitive).
+STRICT RULES:
+- Return EXACTLY 5 to 15 names. No more than 15. Stop after 15.
+- Only include what is visually confirmed — when in doubt, omit.
+- Do NOT repeat names.
+
+{categories}
+
+Return JSON only, no explanation:
+{{"categories": ["Name1", "Name2", "Name3"]}}"""
+
+_PROMPT_GRID = """\
+You are shown {n_grids} images. Each is a 2×2 grid of video frames (left→right, top→bottom = time order).
+
+Look at the images and list ONLY what is clearly and unambiguously visible.
 Use ONLY names from the list below. Copy them EXACTLY (case-sensitive).
 STRICT RULES:
 - Return EXACTLY 5 to 15 names. No more than 15. Stop after 15.
@@ -63,6 +87,7 @@ class VideoTagger:
         max_scenes: int = MAX_SCENES,
         frames_per_pass: int = FRAMES_PER_PASS,
         min_pass_count: int = MIN_PASS_COUNT,
+        mode: str = DEFAULT_MODE,
     ):
         self.categories = load_categories(categories_path) if categories_path else load_categories()
         self.canonical_map = build_canonical_map(self.categories)
@@ -75,6 +100,7 @@ class VideoTagger:
         self.max_scenes = max_scenes
         self.frames_per_pass = frames_per_pass
         self.min_pass_count = min_pass_count
+        self.mode = mode if mode in ("video", "grid") else "video"
 
     def load_model(self):
         self.model.load()
@@ -90,6 +116,7 @@ class VideoTagger:
             print(f"\n{'='*65}")
             print(f"Video: {Path(video_path).name}")
             print(f"Duration: {duration:.1f}s | {info['fps']:.1f}fps | {info['width']}x{info['height']}")
+            print(f"Mode: {self.mode}")
 
         category_counter: Counter = Counter()
         total_passes = 0
@@ -110,27 +137,46 @@ class VideoTagger:
         if verbose:
             print(f"[Scenes] {n_scenes} scenes detected")
 
-        scene_prompt = ANALYSIS_PROMPT_TEMPLATE.format(categories=self._category_listing)
-
         for scene in scenes:
             scene_i = scene["scene_idx"] + 1
             t_start = scene["start_sec"]
             t_end   = scene["end_sec"]
             frames  = scene["frames"]
 
-            if verbose:
-                print(
-                    f"  Scene {scene_i} | {len(frames)} frames "
-                    f"[{t_start:.0f}s–{t_end:.0f}s] → single call",
-                    end=" ",
-                )
+            if self.mode == "grid":
+                # Compose frames into 2×2 grids, one grid per pass
+                n_per_grid = GRID_COLS * GRID_COLS  # 4 frames per grid
+                grids = []
+                for i in range(0, len(frames), n_per_grid):
+                    chunk = frames[i:i + n_per_grid]
+                    grids.append(make_grid(chunk, cols=GRID_COLS, cell_size=(480, 270), add_index=True))
+                n_grids = len(grids)
 
-            raw = self.model.analyze(
-                frames,
-                scene_prompt,
-                fps=TAGGER_FPS,
-                verbose=verbose,
-            )
+                if verbose:
+                    print(
+                        f"  Scene {scene_i} | {n_grids} grids "
+                        f"[{t_start:.0f}s–{t_end:.0f}s] → single call",
+                        end=" ",
+                    )
+
+                scene_prompt = _PROMPT_GRID.format(
+                    categories=self._category_listing,
+                    n_grids=n_grids,
+                )
+                raw = self.model.analyze(grids, scene_prompt, fps=None, verbose=verbose)
+
+            else:
+                # Video mode: send individual frames with fps
+                if verbose:
+                    print(
+                        f"  Scene {scene_i} | {len(frames)} frames "
+                        f"[{t_start:.0f}s–{t_end:.0f}s] → single call",
+                        end=" ",
+                    )
+
+                scene_prompt = _PROMPT_VIDEO.format(categories=self._category_listing)
+                raw = self.model.analyze(frames, scene_prompt, fps=TAGGER_FPS, verbose=verbose)
+
             _, cats = parse_model_output(raw, self.canonical_map)
 
             if verbose and cats:
