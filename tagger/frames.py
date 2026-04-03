@@ -197,28 +197,25 @@ def get_overview_frames(video_path: str, n_frames: int = 8) -> list[Image.Image]
 
 def get_scene_segments(
     video_path: str,
-    passes_per_scene: int = 4,    # 4 windows → 4 grids 2×2 per scene
-    frames_per_pass: int = 4,     # 4 frames per window → 2×2 grid
-    grid_cols: int = 2,           # 2×2 grid
-    max_scenes: int = 8,          # up to 8 scenes
+    passes_per_scene: int = 4,    # 4 windows per scene
+    frames_per_pass: int = 4,     # frames per window
+    grid_cols: int = 2,           # unused (kept for compat)
+    max_scenes: int = 8,
     min_scene_len_sec: float = 3.0,
 ) -> list[dict]:
     """
-    Detect scenes and divide each scene into `passes_per_scene` temporal segments.
-    Default: 4 grids 2×2 per scene, up to 8 scenes.
-    Returns ready-to-use grid images per segment.
+    Detect scenes and divide each scene into `passes_per_scene` temporal windows.
+    Returns individual frames (not grids) per scene as a flat list.
 
     Returns:
         list of {
             "scene_idx": int,
-            "segment_idx": int,        # 0-based within scene
-            "total_segments": int,
-            "start_frame": int,
-            "end_frame": int,
             "start_sec": float,
             "end_sec": float,
-            "grid": PIL.Image,
+            "frames": list[PIL.Image],   # individual frames from this scene
+            "video_fps": float,          # original video fps (for reference)
         }
+        One entry per SCENE (not per segment).
     """
     info = get_video_info(video_path)
     fps = max(info["fps"], 1)
@@ -232,26 +229,25 @@ def get_scene_segments(
 
     results = []
     for scene_idx, (scene_start, scene_end) in enumerate(scenes):
+        # Divide scene into passes, extract frames_per_pass from each
         segments = split_into_segments(scene_start, scene_end, passes_per_scene)
+        all_frames: list[Image.Image] = []
 
-        for seg_idx, (seg_start, seg_end) in enumerate(segments):
+        for seg_start, seg_end in segments:
             frames = extract_frames_range(
                 video_path, seg_start, seg_end, n_frames=frames_per_pass
             )
-            if not frames:
-                continue
+            all_frames.extend(frames)
 
-            grid = make_grid(frames, cols=grid_cols, cell_size=(480, 270), add_index=True)
+        if not all_frames:
+            continue
 
-            results.append({
-                "scene_idx": scene_idx,
-                "segment_idx": seg_idx,
-                "total_segments": len(segments),
-                "start_frame": seg_start,
-                "end_frame": seg_end,
-                "start_sec": seg_start / fps,
-                "end_sec": seg_end / fps,
-                "grid": grid,
-            })
+        results.append({
+            "scene_idx": scene_idx,
+            "start_sec": scene_start / fps,
+            "end_sec": scene_end / fps,
+            "frames": all_frames,
+            "video_fps": fps,
+        })
 
     return results

@@ -46,7 +46,7 @@ os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache/hub"
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
 MODEL_NAME = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"
-# HauhauCS/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive/blob/main/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf
+# MODEL_NAME = "Qwen/Qwen3.5-27B-FP8"
 CACHE_DIR = "/workspace/hf_cache/hub"
 
 
@@ -103,6 +103,7 @@ app = FastAPI(title="Qwen-VL-30B FP8 Server")
 class GenerateRequest(BaseModel):
     prompt: str
     base64_images: List[str] = []
+    fps: Optional[float] = None    # if set → video mode (frames sent as video sequence)
     sampling_params: Optional[Dict[str, Any]] = None
     enable_thinking: bool = False  # Qwen3 /think mode — outputs <think>…</think> before answer
     guided_json: Optional[Dict[str, Any]] = None  # JSON schema → forced structured output
@@ -117,11 +118,18 @@ def decode_base64_image(b64: str) -> Image.Image:
 async def generate(request: GenerateRequest):
     images = []
     outputs = None
+    video_mode = request.fps is not None and len(request.base64_images) > 0
     try:
         images = [decode_base64_image(b) for b in request.base64_images]
 
-        content = [{"type": "image", "image": img} for img in images]
-        content.append({"type": "text", "text": request.prompt})
+        if video_mode:
+            # Video mode: frames treated as a temporal sequence with fps
+            logger.info(f"Video mode: {len(images)} frames @ {request.fps} fps")
+            content = [{"type": "video"}, {"type": "text", "text": request.prompt}]
+        else:
+            # Image mode: each image is a separate visual input (default)
+            content = [{"type": "image", "image": img} for img in images]
+            content.append({"type": "text", "text": request.prompt})
 
         conversation = [{"role": "user", "content": content}]
 
@@ -154,12 +162,11 @@ async def generate(request: GenerateRequest):
         sampling = SamplingParams(**params)
 
         if images:
+            mm_key = "video" if video_mode else "image"
             outputs = llm.generate(
                 {
                     "prompt": full_prompt,
-                    "multi_modal_data": {
-                        "image": images
-                    }
+                    "multi_modal_data": {mm_key: images}
                 },
                 sampling
             )

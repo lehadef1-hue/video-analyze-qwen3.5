@@ -4,9 +4,8 @@ Main video tagger.
 Pipeline:
   1. Scene detection via histogram correlation (up to MAX_SCENES=8)
   2. Each scene → PASSES_PER_SCENE=4 temporal windows × FRAMES_PER_PASS=4 frames
-     Each window → 2×2 grid (GRID_COLS=2)
-     16 frames per scene presented as 4 × 2×2 grids in ONE model call
-  3. Model returns categories per scene (orientation comes from Pass1)
+     All frames from a scene sent as a video sequence (fps=2) in ONE model call
+  3. Model returns categories per scene
 
   Aggregation:
     • Union all detections with frequency counts
@@ -27,22 +26,22 @@ from .model import QwenVLModel
 # ── Configuration ────────────────────────────────────────────────────────────
 
 MAX_SCENES       = 8    # max scenes to analyze
-PASSES_PER_SCENE = 4    # temporal windows per scene (all sent in one model call)
-FRAMES_PER_PASS  = 4    # frames per window → 2×2 grid
-GRID_COLS        = 2    # grid columns (2 cols × 2 rows = 4 cells)
+PASSES_PER_SCENE = 4    # temporal windows per scene
+FRAMES_PER_PASS  = 4    # frames per window → total 16 frames per scene
 
 MIN_SCENE_SEC  = 3.0  # ignore scenes shorter than this
+TAGGER_FPS     = 2.0  # fps value sent to model (frames are sampled at this rate)
 
-# Category must appear in at least this many passes to be included
+# Category must appear in at least this many scenes to be included
 MIN_PASS_COUNT = 1
 
 
 # ── Prompt template ───────────────────────────────────────────────────────────
 
 ANALYSIS_PROMPT_TEMPLATE = """\
-You are shown {n_grids} images. Each is a 2×2 grid of video frames (left→right, top→bottom = time order).
+You are analyzing a video scene. The frames are shown in chronological order.
 
-Look at the images and list ONLY what is clearly and unambiguously visible.
+Look at the frames and list ONLY what is clearly and unambiguously visible.
 Use ONLY names from the list below. Copy them EXACTLY (case-sensitive).
 STRICT RULES:
 - Return EXACTLY 5 to 15 names. No more than 15. Stop after 15.
@@ -98,46 +97,38 @@ class VideoTagger:
         if verbose:
             print(f"\n[Scenes] Detecting scenes (max {self.max_scenes})...")
 
-        segments = get_scene_segments(
+        scenes = get_scene_segments(
             video_path,
             passes_per_scene=self.passes_per_scene,
             frames_per_pass=self.frames_per_pass,
-            grid_cols=GRID_COLS,
             max_scenes=self.max_scenes,
             min_scene_len_sec=MIN_SCENE_SEC,
         )
 
-        n_scenes = len(set(s["scene_idx"] for s in segments)) if segments else 0
+        n_scenes = len(scenes)
 
         if verbose:
             print(f"[Scenes] {n_scenes} scenes detected")
 
-        segments_by_scene: dict[int, list] = {}
-        for seg in segments:
-            segments_by_scene.setdefault(seg["scene_idx"], []).append(seg)
+        scene_prompt = ANALYSIS_PROMPT_TEMPLATE.format(categories=self._category_listing)
 
-        for scene_idx, scene_segs in segments_by_scene.items():
-            scene_i = scene_idx + 1
-            t_start = scene_segs[0]["start_sec"]
-            t_end   = scene_segs[-1]["end_sec"]
-            n_grids = len(scene_segs)
+        for scene in scenes:
+            scene_i = scene["scene_idx"] + 1
+            t_start = scene["start_sec"]
+            t_end   = scene["end_sec"]
+            frames  = scene["frames"]
 
             if verbose:
                 print(
-                    f"  Scene {scene_i} | {n_grids} grids "
+                    f"  Scene {scene_i} | {len(frames)} frames "
                     f"[{t_start:.0f}s–{t_end:.0f}s] → single call",
                     end=" ",
                 )
 
-            scene_prompt = ANALYSIS_PROMPT_TEMPLATE.format(
-                categories=self._category_listing,
-                n_grids=n_grids,
-            )
-
             raw = self.model.analyze(
-                [seg["grid"] for seg in scene_segs],
+                frames,
                 scene_prompt,
-                segment_info=scene_segs[0],
+                fps=TAGGER_FPS,
                 verbose=verbose,
             )
             _, cats = parse_model_output(raw, self.canonical_map)
@@ -173,10 +164,10 @@ class VideoTagger:
             print(f"Total passes: {total_passes} | Time: {processing_time:.1f}s")
 
         scene_segments = []
-        for scene_idx, scene_segs in segments_by_scene.items():
+        for scene in scenes:
             scene_segments.append({
-                "start_sec": float(round(scene_segs[0]["start_sec"], 1)),
-                "end_sec":   float(round(scene_segs[-1]["end_sec"], 1)),
+                "start_sec": float(round(scene["start_sec"], 1)),
+                "end_sec":   float(round(scene["end_sec"], 1)),
             })
 
         return {

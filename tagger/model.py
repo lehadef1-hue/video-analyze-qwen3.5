@@ -39,6 +39,7 @@ class QwenVLModel:
         self,
         images: list[Image.Image],
         prompt: str,
+        fps: float | None = None,
         segment_info: dict | None = None,
         verbose: bool = False,
     ) -> str:
@@ -54,6 +55,8 @@ class QwenVLModel:
                 "repetition_penalty": 1.15,
             },
         }
+        if fps is not None:
+            payload["fps"] = fps
 
         if verbose:
             print(f"\n  [PROMPT LAST 300]: ...{prompt[-300:]}")
