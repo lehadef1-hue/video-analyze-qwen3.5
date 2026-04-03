@@ -114,7 +114,7 @@ def validate_categories(
         "blonde", "brunette", "red head",
         "big tits", "small tits", "big ass", "big cock", "small cock",
         "teen", "mature", "milf", "granny",
-        "oiled", "tattoo", "hairy", "bbw", "chubby", "skinny",
+        "oiled", "tattoo", "hairy pussy", "bbw", "chubby", "skinny",
     }
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -434,7 +434,7 @@ def validate_categories(
     # ══════════════════════════════════════════════════════════════════════════
     cats_l = cl()
 
-    if "hairy" in cats_l and cnt("Hairy") < 2:
-        remove("Hairy")
+    if "hairy pussy" in cats_l and cnt("Hairy Pussy") < 2:
+        remove("Hairy Pussy")
 
     return cats
