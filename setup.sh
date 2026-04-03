@@ -73,15 +73,10 @@ pip install \
     numpy \
     yt-dlp
 
-# ── 4. Optional: InsightFace ─────────────────────────────────────────────────
-echo
-read -r -p "[4/4] Install InsightFace for performer recognition? [y/N] " REPLY
-if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-    pip install insightface onnxruntime-gpu
-    echo "  InsightFace installed."
-else
-    echo "  Skipped. Run later: pip install insightface onnxruntime-gpu"
-fi
+# ── 4. InsightFace ───────────────────────────────────────────────────────────
+echo "[4/4] Installing InsightFace for performer recognition..."
+pip install insightface onnxruntime-gpu
+echo "  InsightFace installed."
 
 # ── Директории ───────────────────────────────────────────────────────────────
 mkdir -p "$HF_CACHE/hub"
