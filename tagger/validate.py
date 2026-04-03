@@ -254,16 +254,28 @@ def validate_categories(
     cats_l = cl()
 
     if "solo" in cats_l:
-        remove(
-            "group", "threesome", "gangbang", "couple",
-            "double penetration", "bisexual male", "lesbian", "cuckold",
-            "pussy licking", "rimjob", "blowjob", "deepthroat",
-            "handjob", "titty fucking", "footjob", "cbt",
-            "pegging", "strapon", "fisting",
-            "cumshot", "facial", "creampie",
-            "casting", "interracial", "old & young",
-            "femdom", "bondage",
-        )
+        # Solo wins only if it appears MORE often than partner-dependent acts.
+        # If gangbang/blowjob etc. appear more often → video is not solo, remove Solo.
+        solo_count = cnt("Solo")
+        partner_acts = ["gangbang", "blowjob", "group sex", "threesome", "couple",
+                        "double penetration", "cumshot", "facial", "creampie",
+                        "pussy licking", "handjob", "titty fucking", "casting"]
+        max_partner_count = max((cnt(a) for a in partner_acts if a in cats_l), default=0)
+        if max_partner_count >= solo_count:
+            # Partner acts dominate — drop Solo
+            remove("Solo")
+        else:
+            # Solo dominates — drop partner-dependent acts
+            remove(
+                "Group Sex", "Threesome", "Gangbang", "Couple",
+                "Double Penetration", "Bisexual Male", "Lesbian", "Cuckold",
+                "Pussy Licking", "Rimjob", "Blowjob", "Deepthroat",
+                "Handjob", "Titty Fucking", "Footjob", "CBT",
+                "Pegging", "Strapon", "Fisting",
+                "Cumshot", "Facial", "Creampie",
+                "Casting", "Interracial", "Old & Young",
+                "Femdom", "Bondage",
+            )
 
     # ══════════════════════════════════════════════════════════════════════════
     # 5. Role / dominance exclusions  (count-aware)
