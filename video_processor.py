@@ -129,7 +129,7 @@ DESCRIPTION_STYLES = {
 # ─── Prompts ──────────────────────────────────────────────────────────────────
 
 def build_analysis_prompt(frame_count: int, ts_map: str, desc_style: str, language: str) -> str:
-    return f"""You receive {frame_count} key frames sampled evenly across the full porn video.
+    return f"""You are watching a porn video. You receive {frame_count} frames sampled evenly across the full video duration.
 
 FRAME TIMESTAMPS (seconds from video start):
 {ts_map}
@@ -255,6 +255,7 @@ def call_vision_model(
     enable_thinking: bool = False,
     guided_json: Optional[Dict] = None,
     pass_name: str = "?",
+    fps: Optional[float] = None,
 ) -> str:
     payload = {
         "prompt": prompt,
@@ -262,6 +263,8 @@ def call_vision_model(
         "sampling_params": sampling or {"temperature": 0.65, "top_p": 0.90, "max_tokens": 2048},
         "enable_thinking": enable_thinking,
     }
+    if fps is not None:
+        payload["fps"] = fps
     if guided_json:
         payload["guided_json"] = guided_json
     try:
@@ -435,12 +438,17 @@ def process_video_v2(
         ts_map = "  ".join(f"F{i}={_fmt_ts(t)}" for i, t in enumerate(ts_1a))
         desc_style = DESCRIPTION_STYLES.get(style, DESCRIPTION_STYLES["standard"])
 
-        logger.info(f"Pass1 start: frames={len(frames_1a)} lang={language}")
+        # fps for video mode: 25 frames spread across usable duration
+        usable_sec = (ts_1a[-1] - ts_1a[0]) if len(ts_1a) > 1 else 1.0
+        pass1_fps = round(len(frames_1a) / max(usable_sec, 1.0), 2)
+
+        logger.info(f"Pass1 start: frames={len(frames_1a)} fps={pass1_fps} lang={language}")
         raw1 = call_vision_model(
             build_analysis_prompt(len(frames_1a), ts_map, desc_style, language),
             frames_1a,
             {"temperature": 0.45, "top_p": 0.85, "max_tokens": 2000},
             pass_name="Pass1",
+            fps=pass1_fps,
         )
         p1 = extract_json_from_response(raw1)
         if not p1:
