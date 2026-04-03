@@ -429,4 +429,12 @@ def validate_categories(
     if "futanari" in cats_l and not any(a in cats_l for a in animation_types):
         remove("Futanari")
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # 10. Hairy: require at least 2 scene detections to avoid head-hair FP
+    # ══════════════════════════════════════════════════════════════════════════
+    cats_l = cl()
+
+    if "hairy" in cats_l and cnt("Hairy") < 2:
+        remove("Hairy")
+
     return cats
